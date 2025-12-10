@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'constants/app_colors.dart';
 import 'constants/app_strings.dart';
 import 'pages/home_page.dart';
+import 'pages/patient_auth_page.dart';
+import 'services/storage_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,7 +92,50 @@ class ERApp extends StatelessWidget {
           iconTheme: IconThemeData(color: AppColors.textPrimary),
         ),
       ),
-      home: const HomePage(),
+      home: const _AuthGate(),
     );
+  }
+}
+
+class _AuthGate extends StatefulWidget {
+  const _AuthGate();
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  bool _loading = true;
+  bool _authed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final p = await StorageService.getAuthPatient();
+    setState(() {
+      _loading = false;
+      _authed = p != null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+          ),
+        ),
+      );
+    }
+    if (_authed) {
+      return const HomePage();
+    }
+    return const PatientAuthPage();
   }
 }

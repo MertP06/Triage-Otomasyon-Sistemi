@@ -1,61 +1,104 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../models/patient.dart';
+import '../services/storage_service.dart';
+import 'patient_auth_page.dart';
 import 'patient_card_page.dart';
 import 'register_page.dart';
 import 'triage_result_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  Patient? _authPatient;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAuth();
+  }
+
+  Future<void> _loadAuth() async {
+    final p = await StorageService.getAuthPatient();
+    setState(() => _authPatient = p);
+  }
+
+  void _logout() async {
+    await StorageService.clearAuthPatient();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const PatientAuthPage()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const Spacer(flex: 2),
-              _buildActionButton(
-                context,
-                icon: Icons.person_add,
-                title: AppStrings.patientRegistration,
-                subtitle: 'Yeni hasta kaydı oluşturun',
-                color: AppColors.primary,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegisterPage()),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildActionButton(
-                context,
-                icon: Icons.assignment,
-                title: AppStrings.triageResult,
-                subtitle: 'Son triage sonucunu görüntüleyin',
-                color: AppColors.info,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TriageResultPage()),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildActionButton(
-                context,
-                icon: Icons.badge,
-                title: AppStrings.patientCard,
-                subtitle: 'Hasta kartını görüntüleyin',
-                color: AppColors.success,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PatientCardPage()),
-                ),
-              ),
-              const Spacer(flex: 3),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFF3F4FF),
+              Color(0xFFF9F5FF),
+              Color(0xFFF0FDF4),
             ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const Spacer(flex: 2),
+                _buildActionButton(
+                  context,
+                  icon: Icons.person_add,
+                  title: AppStrings.patientRegistration,
+                  subtitle: 'Semptom seçerek triage kaydı oluşturun',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterPage()),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildActionButton(
+                  context,
+                  icon: Icons.assignment,
+                  title: AppStrings.triageResult,
+                  subtitle: 'Son triage sonucunu görüntüleyin',
+                  color: AppColors.info,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TriageResultPage()),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildActionButton(
+                  context,
+                  icon: Icons.badge,
+                  title: AppStrings.patientCard,
+                  subtitle: 'Hasta kartını görüntüleyin',
+                  color: AppColors.success,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PatientCardPage()),
+                  ),
+                ),
+                const Spacer(flex: 3),
+              ],
+            ),
           ),
         ),
       ),
@@ -63,6 +106,7 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    final p = _authPatient;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -89,12 +133,25 @@ class HomePage extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Acil servis triage sistemi',
+          p != null
+              ? "${p.fullName} • ${p.nationalId}"
+              : 'Acil servis triage sistemi',
           style: TextStyle(
             fontSize: 16,
             color: AppColors.textSecondary,
           ),
         ),
+        const SizedBox(height: 8),
+        if (p != null)
+          OutlinedButton.icon(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Çıkış Yap'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: AppColors.border),
+            ),
+          ),
       ],
     );
   }

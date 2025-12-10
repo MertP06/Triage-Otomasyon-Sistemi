@@ -71,7 +71,7 @@ lib/
 1. Projeyi klonlayın:
 ```bash
 git clone <repository-url>
-cd er_patient_app
+cd hospital_er/mobil
 ```
 
 2. Bağımlılıkları yükleyin:
@@ -83,6 +83,17 @@ flutter pub get
 ```bash
 flutter run
 ```
+
+### API Adresi
+
+- Varsayılan: `http://10.0.2.2:8080/api` (Android emulator)
+- Farklı ortamlar için: `--dart-define=API_BASE_URL=https://sunucu-adresi/api`
+- Endpoint: `POST /api/mobile/triage` (kayıt + aciliyet yanıtı), `GET /api/appointments/mobile/queue/{tc}`
+
+### Hızlı Test Senaryosu
+1. Backend `./gradlew bootRun` ile ayakta, `hospital_er` veritabanı hazır olsun.
+2. Mobilde formu doldur, semptom seç ve gönder: aciliyet, sıra, ETA dönmeli.
+3. Sonuç ekranında `Sırayı Güncelle` ile çağrı/WAITING durumunu yenile; `CALLED` olursa üstte uyarı bandı gösterilir.
 
 ## 📦 Bağımlılıklar
 

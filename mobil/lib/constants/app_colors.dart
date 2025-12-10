@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Primary colors
-  static const Color primary = Color(0xFF26B4E3);
-  static const Color primaryDark = Color(0xFF1A8BB3);
-  static const Color primaryLight = Color(0xFF5BC5E8);
+  // Primary colors (aligned with web palette)
+  static const Color primary = Color(0xFF6366F1);
+  static const Color primaryDark = Color(0xFF4F46E5);
+  static const Color primaryLight = Color(0xFF818CF8);
 
   // Background colors
-  static const Color background = Color(0xFFF9F0F6);
+  static const Color background = Color(0xFFF1F4FF);
   static const Color surface = Colors.white;
-  static const Color surfaceVariant = Color(0xFFF5F5F5);
+  static const Color surfaceVariant = Color(0xFFF8FAFF);
 
   // Text colors
   static const Color textPrimary = Color(0xFF1A1A1A);

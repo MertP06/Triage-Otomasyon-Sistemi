@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../models/queue_status.dart';
 import '../models/triage_request.dart';
@@ -21,7 +22,7 @@ class TriageService {
     try {
       final res = await ApiClient()
           .client
-          .post('/api/triage', data: request.toJson());
+          .post('/mobile/triage', data: request.toJson());
 
       final data = res.data;
       if (data is Map<String, dynamic>) {
@@ -33,9 +34,10 @@ class TriageService {
       return null;
     } on DioException catch (e) {
       // Wrap with a clearer message for UI
-      final msg = e.response?.data?['message']?.toString() ??
-          e.message ??
-          'Triage isteği başarısız';
+      final data = e.response?.data;
+      final msg = (data is Map && data['message'] != null)
+          ? data['message'].toString()
+          : e.message ?? 'Triage isteği başarısız';
       throw Exception(msg);
     } catch (e) {
       throw Exception('Triage isteği başarısız: $e');
@@ -47,7 +49,7 @@ class TriageService {
     if (tc.isEmpty) return null;
     try {
       final res =
-          await ApiClient().client.get('/api/appointments/mobile/queue/$tc');
+          await ApiClient().client.get('/appointments/mobile/queue/$tc');
       final data = res.data;
       if (data is Map<String, dynamic>) {
         return QueueStatus.fromJson(data);
@@ -56,9 +58,35 @@ class TriageService {
         return QueueStatus.fromJson(Map<String, dynamic>.from(data));
       }
       return null;
-    } on DioException catch (_) {
-      return null; // queue bilgisi kritik değil; sessiz geç
+    } on DioException catch (e) {
+      // 404 veya başka hatalar için null döndür (aktif randevu yok demektir)
+      if (e.response?.statusCode == 404) {
+        return QueueStatus(found: false, message: 'Aktif randevu bulunamadı');
+      }
+      return null;
     } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fetch patient history with appointments, triage records, and doctor notes
+  Future<Map<String, dynamic>?> fetchPatientHistory(String tc) async {
+    if (tc.isEmpty) return null;
+    try {
+      final res = await ApiClient().client.get('/appointments/history/$tc');
+      final data = res.data;
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+      return null;
+    } on DioException catch (e) {
+      debugPrint('Hasta geçmişi yüklenemedi: $e');
+      return null;
+    } catch (e) {
+      debugPrint('Hasta geçmişi yüklenemedi: $e');
       return null;
     }
   }

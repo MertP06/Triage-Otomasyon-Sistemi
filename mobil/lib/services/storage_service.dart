@@ -6,6 +6,8 @@ class StorageService {
   static const _kLastPatientKey = "last_patient";
   static const _kPatientHistoryKey = "patient_history";
   static const _kMaxHistorySize = 50; // Maximum number of patients to keep in history
+  static const _kAuthPatientKey = "auth_patient";
+  static const _kNotifyPrefKey = "notify_on_update";
 
   /// Save the last registered patient
   static Future<void> saveLastPatient(Patient p) async {
@@ -84,6 +86,7 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kLastPatientKey);
       await prefs.remove(_kPatientHistoryKey);
+      await prefs.remove(_kAuthPatientKey);
     } catch (e) {
       throw Exception('Veriler temizlenirken hata oluştu: $e');
     }
@@ -97,5 +100,39 @@ class StorageService {
     } catch (e) {
       throw Exception('Geçmiş temizlenirken hata oluştu: $e');
     }
+  }
+
+  /// Save authenticated patient profile
+  static Future<void> saveAuthPatient(Patient p) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kAuthPatientKey, jsonEncode(p.toJson()));
+  }
+
+  /// Get authenticated patient profile
+  static Future<Patient?> getAuthPatient() async {
+    final prefs = await SharedPreferences.getInstance();
+    final str = prefs.getString(_kAuthPatientKey);
+    if (str == null) return null;
+    try {
+      final json = jsonDecode(str) as Map<String, dynamic>;
+      return Patient.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> clearAuthPatient() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kAuthPatientKey);
+  }
+
+  static Future<void> saveNotifyPreference(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kNotifyPrefKey, enabled);
+  }
+
+  static Future<bool> getNotifyPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kNotifyPrefKey) ?? true;
   }
 }

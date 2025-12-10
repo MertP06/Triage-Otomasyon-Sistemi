@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle, FilteringTextInputFormatter;
 
@@ -23,6 +24,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _tcCtrl = TextEditingController();
+  final _birthYearCtrl = TextEditingController();
+  final _complaintCtrl = TextEditingController();
+  String? _gender; // "E" / "K"
+  Patient? _authPatient;
 
   List<Map<String, dynamic>> _categories = [];
   final Set<String> _picked = {};
@@ -34,14 +39,30 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    _loadCategories();
+    _loadAuthAndCategories();
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _tcCtrl.dispose();
+    _birthYearCtrl.dispose();
+    _complaintCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAuthAndCategories() async {
+    final auth = await StorageService.getAuthPatient();
+    if (auth != null) {
+      _authPatient = auth;
+      _nameCtrl.text = auth.fullName;
+      _tcCtrl.text = auth.nationalId;
+      if (auth.birthYear != null) {
+        _birthYearCtrl.text = auth.birthYear.toString();
+      }
+      _gender = auth.gender;
+    }
+    await _loadCategories();
   }
 
   Future<void> _loadCategories() async {
@@ -100,15 +121,102 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
+      final tc = _tcCtrl.text.trim();
+      
+      // Aktif randevu kontrolü
+      final queueStatus = await TriageService().fetchQueueStatus(tc);
+      if (queueStatus != null && queueStatus.found == true && 
+          (queueStatus.status == 'WAITING' || queueStatus.status == 'CALLED' || queueStatus.status == 'IN_PROGRESS')) {
+        setState(() {
+          _submitting = false;
+        });
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Aktif Randevu Mevcut'),
+              content: Text(
+                'Zaten aktif bir randevunuz bulunmaktadır.\n\n'
+                'Sıra No: ${queueStatus.queueNumber}\n'
+                'Durum: ${queueStatus.status}\n\n'
+                'Lütfen mevcut randevunuz tamamlanana kadar yeni randevu oluşturmayın.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Tamam'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TriageResultPage()),
+                    );
+                  },
+                  child: const Text('Randevumu Gör'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       final req = TriageRequest(
         fullName: _nameCtrl.text.trim(),
-        nationalId: _tcCtrl.text.trim(),
+        nationalId: tc,
         symptoms: _picked.toList(),
+        birthYear: _birthYearCtrl.text.trim().isNotEmpty
+            ? int.tryParse(_birthYearCtrl.text.trim())
+            : null,
+        gender: _gender,
+        chiefComplaint: _complaintCtrl.text.trim().isNotEmpty
+            ? _complaintCtrl.text.trim()
+            : null,
       );
 
       TriageResponse? apiResp;
       try {
         apiResp = await TriageService().submitTriage(req);
+      } on DioException catch (e) {
+        // 409 Conflict = Aktif randevu var
+        if (e.response?.statusCode == 409) {
+          final msg = e.response?.data?['message']?.toString() ?? 
+              'Zaten aktif bir randevunuz bulunmaktadır.';
+          setState(() {
+            _submitting = false;
+            _errorMessage = msg;
+          });
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Aktif Randevu Mevcut'),
+                content: Text(msg),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Tamam'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const TriageResultPage()),
+                      );
+                    },
+                    child: const Text('Randevumu Gör'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
+        }
+        // Diğer API hatalarında fallback'e devam ediyoruz
+        debugPrint('API triage hatası: $e');
       } catch (e) {
         // API hatasında fallback'e devam ediyoruz
         debugPrint('API triage hatası: $e');
@@ -119,12 +227,15 @@ class _RegisterPageState extends State<RegisterPage> {
           await TriageService().matchBySymptoms(_picked.toList());
 
       // Sıra bilgisi için backend kuyruğu dene (opsiyonel)
-      final queueStatus =
+      final finalQueueStatus =
           await TriageService().fetchQueueStatus(req.nationalId);
 
       final queueNo = apiResp?.queueNumber ??
-          queueStatus?.queueNumber ??
+          finalQueueStatus?.queueNumber ??
           _generateQueueNumber();
+      final estimatedWait = apiResp?.estimatedWaitMinutes ??
+          finalQueueStatus?.estimatedWaitMinutes;
+      final statusMessage = apiResp?.message ?? finalQueueStatus?.message;
 
       final p = Patient(
         fullName: req.fullName,
@@ -141,6 +252,9 @@ class _RegisterPageState extends State<RegisterPage> {
             fallbackRule?.response ??
             AppStrings.defaultResponse,
         createdAt: DateTime.now(),
+        estimatedWaitMinutes: estimatedWait,
+        status: apiResp?.status ?? finalQueueStatus?.status,
+        statusMessage: statusMessage,
       );
 
       await StorageService.saveLastPatient(p);
@@ -175,7 +289,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F0F6),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(AppStrings.registerTitle),
       ),
@@ -204,168 +318,181 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
       ),
 
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-              ),
-            )
-          : _errorMessage != null && _categories.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: AppColors.error,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: AppColors.error),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadCategories,
-                        child: const Text('Tekrar Dene'),
-                      ),
-                    ],
-                  ),
-                )
-              : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(child: _buildFormHeader()),
-                SliverToBoxAdapter(child: _buildSearchCard()),
-                // Kategoriler
-                SliverList.builder(
-                  itemCount: _categories.length,
-                  itemBuilder: (context, ci) {
-                    final cat = _categories[ci];
-                    final title = cat['name'] as String;
-                    final items = (cat['items'] as List).cast<String>();
-
-                    // Global aramaya göre filtre
-                    final hasSearch = _search.trim().isNotEmpty;
-                    final filtered = hasSearch
-                        ? items
-                            .where((s) => s
-                                .toLowerCase()
-                                .contains(_search.toLowerCase()))
-                            .toList()
-                        : items;
-
-                    if (filtered.isEmpty && hasSearch) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final selectedCount =
-                        items.where((s) => _picked.contains(s)).length;
-
-                    return Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black12),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFFF3F4FF),
+              Color(0xFFF9F5FF),
+              Color(0xFFF0FDF4),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+              )
+            : _errorMessage != null && _categories.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: AppColors.error,
                         ),
-                        child: Theme(
-                          data: Theme.of(context)
-                              .copyWith(dividerColor: Colors.transparent),
-                          child: ExpansionTile(
-                            // Sadece metin: başlıkta Row yok, overflow riski yok
-                            title: Text(
-                              title,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                            children: [
-                              // Üst bilgi satırı: seçili sayısı + kategori aksiyonları
-                              Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 4, right: 4, top: 6),
-                                child: Row(
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: AppColors.error),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadCategories,
+                          child: const Text('Tekrar Dene'),
+                        ),
+                      ],
+                    ),
+                  )
+                : CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildFormHeader()),
+                      SliverToBoxAdapter(child: _buildSearchCard()),
+                      SliverList.builder(
+                        itemCount: _categories.length,
+                        itemBuilder: (context, ci) {
+                          final cat = _categories[ci];
+                          final title = cat['name'] as String;
+                          final items = (cat['items'] as List).cast<String>();
+
+                          final hasSearch = _search.trim().isNotEmpty;
+                          final filtered = hasSearch
+                              ? items
+                                  .where((s) => s
+                                      .toLowerCase()
+                                      .contains(_search.toLowerCase()))
+                                  .toList()
+                              : items;
+
+                          if (filtered.isEmpty && hasSearch) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final selectedCount =
+                              items.where((s) => _picked.contains(s)).length;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.black12),
+                              ),
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                    dividerColor: Colors.transparent),
+                                child: ExpansionTile(
+                                  title: Text(
+                                    title,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  childrenPadding:
+                                      const EdgeInsets.fromLTRB(12, 0, 12, 12),
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        selectedCount > 0
-                                            ? "$selectedCount ${AppStrings.selected.toLowerCase()}"
-                                            : "${AppStrings.itemsCount}: ${filtered.length}",
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 4, right: 4, top: 6),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              selectedCount > 0
+                                                  ? "$selectedCount ${AppStrings.selected.toLowerCase()}"
+                                                  : "${AppStrings.itemsCount}: ${filtered.length}",
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          TextButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                for (final s in filtered) {
+                                                  _picked.add(s);
+                                                }
+                                              });
+                                            },
+                                            child: const Text(AppStrings.selectAll),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                for (final s in filtered) {
+                                                  _picked.remove(s);
+                                                }
+                                              });
+                                            },
+                                            child: const Text(AppStrings.clear),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    TextButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          for (final s in filtered) {
-                                            _picked.add(s);
-                                          }
-                                        });
+                                    const SizedBox(height: 4),
+                                    ListView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: filtered.length,
+                                      itemBuilder: (context, i) {
+                                        final s = filtered[i];
+                                        final selected = _picked.contains(s);
+                                        return CheckboxListTile(
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 4),
+                                          visualDensity: VisualDensity.compact,
+                                          title: Text(
+                                            s,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          value: selected,
+                                          onChanged: (val) {
+                                            setState(() {
+                                              if (val == true) {
+                                                _picked.add(s);
+                                              } else {
+                                                _picked.remove(s);
+                                              }
+                                            });
+                                          },
+                                        );
                                       },
-                                      child: const Text(AppStrings.selectAll),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          for (final s in filtered) {
-                                            _picked.remove(s);
-                                          }
-                                        });
-                                      },
-                                      child: const Text(AppStrings.clear),
                                     ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: filtered.length,
-                                itemBuilder: (context, i) {
-                                  final s = filtered[i];
-                                  final selected = _picked.contains(s);
-                                  return CheckboxListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 4),
-                                    visualDensity: VisualDensity.compact,
-                                    title: Text(
-                                      s,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    value: selected,
-                                    onChanged: (val) {
-                                      setState(() {
-                                        if (val == true) {
-                                          _picked.add(s);
-                                        } else {
-                                          _picked.remove(s);
-                                        }
-                                      });
-                                    },
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 80)),
-              ],
-            ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                    ],
+                  ),
+      ),
     );
   }
 
@@ -382,6 +509,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 labelText: AppStrings.fullName,
                 prefixIcon: Icon(Icons.person),
               ),
+              readOnly: _authPatient != null,
               textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.words,
               validator: Validators.validateFullName,
@@ -397,7 +525,58 @@ class _RegisterPageState extends State<RegisterPage> {
               keyboardType: TextInputType.number,
               maxLength: 11,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              readOnly: _authPatient != null,
               validator: Validators.validateTcKimlikNo,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _birthYearCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Doğum Yılı (opsiyonel)',
+                      prefixIcon: Icon(Icons.calendar_today),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    readOnly: _authPatient != null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final parsed = int.tryParse(v.trim());
+                      if (parsed == null || parsed < 1900 || parsed > DateTime.now().year) {
+                        return 'Geçerli bir yıl girin';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _gender,
+                    decoration: const InputDecoration(
+                      labelText: 'Cinsiyet (E/K)',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'E', child: Text('Erkek (E)')),
+                      DropdownMenuItem(value: 'K', child: Text('Kadın (K)')),
+                    ],
+                    onChanged: _authPatient != null ? null : (val) => setState(() => _gender = val),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _complaintCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Şikayet / Chief Complaint (opsiyonel)',
+                prefixIcon: Icon(Icons.description_outlined),
+              ),
+              maxLines: 2,
+              textInputAction: TextInputAction.newline,
             ),
           ],
         ),

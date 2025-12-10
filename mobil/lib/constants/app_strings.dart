@@ -37,6 +37,10 @@ class AppStrings {
   static const String queueNumber = 'Sıra Numaranız';
   static const String estimatedWait = 'Tahmini bekleme';
   static const String minutes = 'dakika';
+  static const String triageFinishedTitle = 'Triaj tamamlandı';
+  static const String triageFinishedDesc =
+      'Değerlendirme süreci bitti. Lütfen çağrı ekranını ve bildirimleri takip edin.';
+  static const String createdAt = 'Kayıt zamanı';
 
   // Patient Card Page
   static const String patientCardTitle = 'Hasta Kartı';

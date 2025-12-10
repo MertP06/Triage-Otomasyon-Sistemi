@@ -31,8 +31,13 @@ class ApiClient {
   late final Dio _dio;
 
   // Use dart-define to override: --dart-define=API_BASE_URL=https://api.example.com
-  static const String _baseUrl =
-      String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:8080');
+  // For web (Chrome): use localhost
+  // For Android emulator: use 10.0.2.2
+  // For iOS simulator: use localhost
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:8080/api',
+  );
 
   Dio get client => _dio;
 

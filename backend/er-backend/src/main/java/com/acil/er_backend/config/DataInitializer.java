@@ -21,11 +21,11 @@ public class DataInitializer {
 
     @EventListener(ApplicationReadyEvent.class)
     public void initializeDefaultUsers() {
-        if (!userRepository.existsByUsername("nurse")) {
+        if (!userRepository.existsByUsername("triyaj")) {
             User nurse = new User();
-            nurse.setUsername("nurse");
-            nurse.setPassword(passwordEncoder.encode("nurse123"));
-            nurse.setFullName("Hemşire Ayşe");
+            nurse.setUsername("triyaj");
+            nurse.setPassword(passwordEncoder.encode("triyaj123"));
+            nurse.setFullName("Triyaj Sorumlusu Ayşe");
             nurse.setRole(Role.NURSE);
             nurse.setActive(true);
             userRepository.save(nurse);

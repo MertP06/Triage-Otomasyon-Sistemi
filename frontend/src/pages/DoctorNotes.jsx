@@ -16,18 +16,43 @@ const DoctorNotes = () => {
         plan: '',
         prescription: '',
         labOrders: '',
+        selectedLabOrders: [],
         followUpDate: '',
         followUpNotes: '',
         referralNeeded: false,
         referralDepartment: '',
         restDays: ''
     });
+    const [labSearchTerm, setLabSearchTerm] = useState('');
+    const [departmentSearchTerm, setDepartmentSearchTerm] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const detail = await apiGet(`/appointments/${appointmentId}/detail`);
                 setAppointment(detail);
+                
+                // Mevcut doktor notunu yükle (varsa)
+                if (detail?.doctorNotes && detail.doctorNotes.length > 0) {
+                    const latestNote = detail.doctorNotes[0];
+                    const labOrdersArray = latestNote.labOrders 
+                        ? latestNote.labOrders.split(',').map(s => s.trim()).filter(s => s)
+                        : [];
+                    
+                    setForm({
+                        diagnosis: latestNote.diagnosis || '',
+                        secondaryDiagnosis: latestNote.secondaryDiagnosis || '',
+                        plan: latestNote.plan || '',
+                        prescription: latestNote.prescription || '',
+                        labOrders: latestNote.labOrders || '',
+                        selectedLabOrders: labOrdersArray,
+                        followUpDate: latestNote.followUpDate || '',
+                        followUpNotes: latestNote.followUpNotes || '',
+                        referralNeeded: latestNote.referralNeeded || false,
+                        referralDepartment: latestNote.referralDepartment || '',
+                        restDays: latestNote.restDays?.toString() || ''
+                    });
+                }
             } catch (err) {
                 console.error('Veriler yüklenemedi:', err);
             } finally {
@@ -37,9 +62,102 @@ const DoctorNotes = () => {
         fetchData();
     }, [appointmentId]);
 
+    // Türkiye sağlık sistemine uygun laboratuvar testleri
+    const labTests = [
+        'Tam Kan Sayımı (Hemogram)',
+        'Biyokimya (Glukoz, Üre, Kreatinin)',
+        'Karaciğer Fonksiyon Testleri (ALT, AST, GGT)',
+        'Lipid Profili',
+        'Tiroid Fonksiyon Testleri (TSH, T3, T4)',
+        'CRP (C-Reaktif Protein)',
+        'Sedimantasyon',
+        'İdrar Tahlili',
+        'Dışkı Tahlili',
+        'Kan Gazı',
+        'Koagülasyon Testleri (PT, aPTT, INR)',
+        'Troponin',
+        'BNP (B-Tipi Natriüretik Peptid)',
+        'D-Dimer',
+        'Ferritin',
+        'Vitamin D',
+        'B12, Folik Asit',
+        'HbA1c',
+        'Kültür ve Antibiyogram',
+        'Seroloji Testleri',
+        'Hormon Testleri',
+        'Elektrolitler (Na, K, Cl)',
+        'Bilirubin (Total, Direkt)',
+        'Albumin',
+        'Protein Elektroforezi',
+        'Tümör Markerları',
+        'Kan Grubu ve Crossmatch',
+        'Gebelik Testi (Beta-HCG)',
+        'PSA (Prostat Spesifik Antijen)',
+        'Romatoid Faktör (RF)',
+        'Anti-CCP',
+        'ANA (Antinükleer Antikor)',
+        'Hepatit Serolojisi',
+        'HIV Testi',
+        'Tüberküloz Testleri',
+        'EKG',
+        'Ekokardiografi',
+        'Akciğer Grafisi',
+        'BT (Bilgisayarlı Tomografi)',
+        'MR (Manyetik Rezonans)',
+        'Ultrasonografi'
+    ];
+
+    // Türkiye sağlık sistemine uygun tıbbi bölümler
+    const medicalDepartments = [
+        'Acil Tıp',
+        'Anesteziyoloji ve Reanimasyon',
+        'Beyin ve Sinir Cerrahisi (Nöroşirurji)',
+        'Çocuk Cerrahisi',
+        'Çocuk Sağlığı ve Hastalıkları',
+        'Dermatoloji',
+        'Enfeksiyon Hastalıkları',
+        'Fizik Tedavi ve Rehabilitasyon',
+        'Genel Cerrahi',
+        'Göğüs Cerrahisi',
+        'Göğüs Hastalıkları',
+        'Göz Hastalıkları',
+        'İç Hastalıkları (Dahiliye)',
+        'Kadın Hastalıkları ve Doğum',
+        'Kalp ve Damar Cerrahisi',
+        'Kardiyoloji',
+        'Kulak Burun Boğaz',
+        'Nöroloji',
+        'Ortopedi ve Travmatoloji',
+        'Plastik ve Rekonstrüktif Cerrahi',
+        'Psikiyatri',
+        'Radyoloji',
+        'Üroloji',
+        'Onkoloji',
+        'Endokrinoloji',
+        'Gastroenteroloji',
+        'Nefroloji',
+        'Romatoloji',
+        'Hematoloji',
+        'İmmünoloji ve Alerji',
+        'Göğüs Hastalıkları ve Tüberküloz',
+        'Nükleer Tıp',
+        'Patoloji'
+    ];
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
+    };
+
+    const handleLabOrderToggle = (labTest) => {
+        const updated = form.selectedLabOrders.includes(labTest)
+            ? form.selectedLabOrders.filter(t => t !== labTest)
+            : [...form.selectedLabOrders, labTest];
+        setForm({
+            ...form,
+            selectedLabOrders: updated,
+            labOrders: updated.join(', ')
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -116,7 +234,7 @@ const DoctorNotes = () => {
                 <div className="form-section suggestions-section">
                     <div className="section-header">
                         <h3>📊 Veri Setinden Eşleşen Kayıtlar (Triaj'dan)</h3>
-                        <span className="info-badge">Hemşire tarafından kaydedilen semptomlara göre</span>
+                        <span className="info-badge">Triyaj sırasında kaydedilen semptomlara göre</span>
                     </div>
                     <div className="suggestions-grid">
                         {suggestions.map((suggestion, idx) => {
@@ -192,14 +310,85 @@ const DoctorNotes = () => {
                     </div>
                     <div className="form-group">
                         <label>Laboratuvar İstemleri</label>
-                        <textarea
-                            name="labOrders"
-                            value={form.labOrders}
-                            onChange={handleChange}
-                            rows="3"
-                            placeholder="Tetkik istekleri"
-                            className="notes-textarea"
-                        />
+                        <div className="lab-orders-container">
+                            <div className="lab-orders-search-wrapper">
+                                <div className="lab-orders-search">
+                                    <input
+                                        type="text"
+                                        placeholder="Test ara... (örn: kan, karaciğer, tiroid)"
+                                        value={labSearchTerm}
+                                        onChange={(e) => setLabSearchTerm(e.target.value)}
+                                        className="lab-search-input"
+                                    />
+                                    {labSearchTerm && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setLabSearchTerm('')}
+                                            className="search-clear-btn"
+                                            aria-label="Temizle"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                                {labSearchTerm && (
+                                    <div className="lab-orders-dropdown">
+                                        {labTests
+                                            .filter(test => 
+                                                test.toLowerCase().includes(labSearchTerm.toLowerCase())
+                                            )
+                                            .map((test, idx) => {
+                                                const isSelected = form.selectedLabOrders.includes(test);
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={`lab-order-option ${isSelected ? 'selected' : ''}`}
+                                                        onClick={() => handleLabOrderToggle(test)}
+                                                    >
+                                                        <div className="lab-order-checkbox-wrapper">
+                                                            <div className={`lab-order-checkbox-custom ${isSelected ? 'checked' : ''}`}>
+                                                                {isSelected && (
+                                                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                                                        <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                                    </svg>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <span className="lab-order-text">{test}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        {labTests.filter(test => 
+                                            test.toLowerCase().includes(labSearchTerm.toLowerCase())
+                                        ).length === 0 && (
+                                            <div className="lab-orders-empty">
+                                                <span className="empty-icon">🔍</span>
+                                                <p>"{labSearchTerm}" için sonuç bulunamadı</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            {form.selectedLabOrders.length > 0 && (
+                                <div className="selected-lab-orders">
+                                    <div className="selected-tags">
+                                        {form.selectedLabOrders.map((test, idx) => (
+                                            <span key={idx} className="selected-tag">
+                                                <span className="tag-text">{test}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleLabOrderToggle(test)}
+                                                    className="tag-remove"
+                                                    aria-label="Kaldır"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -256,13 +445,84 @@ const DoctorNotes = () => {
                     {form.referralNeeded && (
                         <div className="form-group">
                             <label>Sevk Edilecek Bölüm</label>
-                            <input
-                                type="text"
-                                name="referralDepartment"
-                                value={form.referralDepartment}
-                                onChange={handleChange}
-                                placeholder="Örn: Kardiyoloji"
-                            />
+                            <div className="department-search-wrapper">
+                                <div className="department-search">
+                                    <input
+                                        type="text"
+                                        placeholder={form.referralDepartment || "Bölüm ara... (örn: kardiyoloji, nöroloji)"}
+                                        value={departmentSearchTerm}
+                                        onChange={(e) => setDepartmentSearchTerm(e.target.value)}
+                                        className="department-search-input"
+                                        onFocus={() => {
+                                            if (form.referralDepartment && !departmentSearchTerm) {
+                                                setDepartmentSearchTerm(form.referralDepartment);
+                                            }
+                                        }}
+                                    />
+                                    {(departmentSearchTerm || form.referralDepartment) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setDepartmentSearchTerm('');
+                                                setForm({ ...form, referralDepartment: '' });
+                                            }}
+                                            className="search-clear-btn"
+                                            aria-label="Temizle"
+                                        >
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
+                                {departmentSearchTerm && (
+                                    <div className="department-dropdown">
+                                        {medicalDepartments
+                                            .filter(dept => 
+                                                dept.toLowerCase().includes(departmentSearchTerm.toLowerCase())
+                                            )
+                                            .map((dept, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`department-option ${form.referralDepartment === dept ? 'selected' : ''}`}
+                                                    onClick={() => {
+                                                        setForm({ ...form, referralDepartment: dept });
+                                                        setDepartmentSearchTerm('');
+                                                    }}
+                                                >
+                                                    {dept}
+                                                    {form.referralDepartment === dept && (
+                                                        <svg className="check-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                                            <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        {medicalDepartments.filter(dept => 
+                                            dept.toLowerCase().includes(departmentSearchTerm.toLowerCase())
+                                        ).length === 0 && (
+                                            <div className="department-empty">
+                                                <span className="empty-icon">🔍</span>
+                                                <p>"{departmentSearchTerm}" için sonuç bulunamadı</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {form.referralDepartment && !departmentSearchTerm && (
+                                    <div className="selected-department">
+                                        <span className="selected-dept-badge">
+                                            <span className="dept-icon">🏥</span>
+                                            <span className="dept-name">{form.referralDepartment}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm({ ...form, referralDepartment: '' })}
+                                                className="dept-remove"
+                                                aria-label="Kaldır"
+                                            >
+                                                ×
+                                            </button>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

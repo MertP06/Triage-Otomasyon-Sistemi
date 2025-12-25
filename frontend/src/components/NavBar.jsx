@@ -39,7 +39,7 @@ const NavBar = () => {
 
             <div className="navbar-user">
                 <span className="user-role">
-                    {user.role === 'NURSE' ? '👩‍⚕️ Hemşire' : '👨‍⚕️ Doktor'}
+                    {user.role === 'NURSE' ? '👩‍⚕️ Triyaj Sorumlusu' : '👨‍⚕️ Doktor'}
                 </span>
                 <button onClick={handleLogout} className="btn-logout">
                     Çıkış Yap

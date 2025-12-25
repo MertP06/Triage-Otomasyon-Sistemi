@@ -169,7 +169,7 @@ flutter run -d ios --dart-define=API_BASE_URL=http://localhost:8080/api
 
 | Rol | Kullanıcı Adı | Şifre |
 |-----|---------------|-------|
-| Hemşire | `nurse` | `nurse123` |
+| Triyaj Sorumlusu | `triyaj` | `triyaj123` |
 | Doktor | `doctor` | `doctor123` |
 
 ### Mobil Uygulama

@@ -69,8 +69,8 @@ const Login = () => {
 
                 <div className="demo-accounts">
                     <div className="demo-account">
-                        <span className="demo-account-role">👩‍⚕️ Hemşire</span>
-                        <span className="demo-account-creds">nurse / nurse123</span>
+                        <span className="demo-account-role">👩‍⚕️ Triyaj Sorumlusu</span>
+                        <span className="demo-account-creds">triyaj / triyaj123</span>
                     </div>
                     <div className="demo-account">
                         <span className="demo-account-role">👨‍⚕️ Doktor</span>

@@ -947,6 +947,7 @@ body {
     margin-bottom: 28px;
     padding-bottom: 28px;
     border-bottom: 1px solid var(--gray-100);
+    position: relative;
 }
 
 .form-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
@@ -1844,6 +1845,405 @@ body {
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   LABORATUVAR İSTEMLERİ VE SEVK BÖLÜMLERİ
+═══════════════════════════════════════════════════════════ */
+.lab-orders-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lab-orders-search-wrapper {
+    margin-bottom: 0;
+    position: relative;
+}
+
+.lab-orders-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--white);
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    margin-top: 0;
+    display: block;
+    min-height: 50px;
+}
+
+.lab-orders-dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+
+.lab-orders-dropdown::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: var(--radius-full);
+}
+
+.lab-orders-dropdown::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    border-radius: var(--radius-full);
+}
+
+.lab-orders-dropdown::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--accent) 100%);
+}
+
+.lab-order-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.lab-order-option:last-child {
+    border-bottom: none;
+}
+
+.lab-order-option:hover {
+    background: var(--primary-50);
+    color: var(--primary-dark);
+}
+
+.lab-order-option.selected {
+    background: linear-gradient(135deg, var(--primary-50) 0%, var(--accent) 0.5%, var(--success-50) 100%);
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.lab-order-checkbox-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.lab-order-checkbox-custom {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gray-300);
+    border-radius: 5px;
+    background: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.lab-order-checkbox-custom.checked {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-color: var(--primary-dark);
+    color: var(--white);
+}
+
+.lab-order-checkbox-custom svg {
+    width: 10px;
+    height: 10px;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.2s ease;
+}
+
+.lab-order-checkbox-custom.checked svg {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.lab-order-text {
+    flex: 1;
+    z-index: 1;
+    line-height: 1.4;
+}
+
+.selected-lab-orders {
+    padding: 12px 0;
+}
+
+.selected-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.selected-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--primary-50);
+    color: var(--primary-dark);
+    border: 1.5px solid var(--primary);
+    border-radius: var(--radius-full);
+    font-size: 13px;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.selected-tag:hover {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.tag-text {
+    flex: 1;
+}
+
+.tag-remove {
+    background: transparent;
+    border: none;
+    color: inherit;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    transition: var(--transition);
+    font-weight: 700;
+    opacity: 0.7;
+}
+
+.tag-remove:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Arama kutusu stilleri */
+.lab-orders-search,
+.department-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.search-icon {
+    position: absolute;
+    left: 16px;
+    color: var(--gray-400);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.lab-search-input,
+.department-search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: inherit;
+    transition: var(--transition);
+    background: var(--white);
+    color: var(--gray-900);
+    box-shadow: var(--shadow-xs);
+}
+
+.lab-search-input:focus,
+.department-search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-50), var(--shadow-sm);
+}
+
+.search-clear-btn {
+    position: absolute;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: var(--gray-200);
+    color: var(--gray-600);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    transition: var(--transition);
+    z-index: 1;
+}
+
+.search-clear-btn:hover {
+    background: var(--danger);
+    color: var(--white);
+    transform: scale(1.1);
+}
+
+/* Boş sonuç mesajı */
+.lab-orders-empty,
+.department-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--gray-500);
+}
+
+.empty-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.lab-orders-empty p,
+.department-empty p {
+    font-size: 14px;
+    margin-bottom: 16px;
+    color: var(--gray-600);
+}
+
+.btn-clear-search {
+    padding: 8px 16px;
+    background: var(--white);
+    border: 1.5px solid var(--gray-300);
+    border-radius: var(--radius-full);
+    color: var(--gray-700);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-clear-search:hover {
+    background: var(--primary-50);
+    border-color: var(--primary);
+    color: var(--primary-dark);
+}
+
+/* Sevk bölümü stilleri */
+.department-search-wrapper {
+    position: relative;
+}
+
+.department-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--white);
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    margin-top: 4px;
+}
+
+.department-option {
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 14px;
+    color: var(--gray-700);
+}
+
+.department-option:last-child {
+    border-bottom: none;
+}
+
+.department-option:hover {
+    background: var(--primary-50);
+    color: var(--primary-dark);
+}
+
+.department-option.selected {
+    background: linear-gradient(135deg, var(--primary-50) 0%, var(--accent) 0.5%, var(--success-50) 100%);
+    color: var(--primary-dark);
+    font-weight: 600;
+}
+
+.check-icon {
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.selected-department {
+    margin-top: 12px;
+}
+
+.selected-dept-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: var(--white);
+    border-radius: var(--radius-full);
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+}
+
+.dept-icon {
+    font-size: 16px;
+}
+
+.dept-name {
+    flex: 1;
+}
+
+.dept-remove {
+    background: rgba(255, 255, 255, 0.25);
+    border: none;
+    color: var(--white);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    transition: var(--transition);
+    font-weight: 700;
+}
+
+.dept-remove:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+}
+
+/* Custom scrollbar for department dropdown */
+.department-dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+
+.department-dropdown::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: var(--radius-full);
+}
+
+.department-dropdown::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    border-radius: var(--radius-full);
+}
+
+.department-dropdown::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--accent) 100%);
+}
+
 @media (max-width: 768px) {
     .container { padding: 100px 16px 32px; }
     .navbar { top: 8px; width: calc(100% - 16px); padding: 0 16px; }
@@ -1854,4 +2254,22 @@ body {
     .clock { font-size: 32px; }
     .triage-levels { grid-template-columns: 1fr; }
     .login-card { padding: 32px 24px; }
+    .lab-orders-dropdown {
+        max-height: 250px;
+    }
+    .lab-order-option {
+        padding: 10px 14px;
+        font-size: 13px;
+    }
+    .selected-tag {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    .department-dropdown {
+        max-height: 250px;
+    }
+    .department-option {
+        padding: 12px 14px;
+        font-size: 13px;
+    }
 }
